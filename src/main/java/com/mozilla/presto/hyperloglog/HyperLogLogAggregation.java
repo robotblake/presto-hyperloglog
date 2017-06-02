@@ -14,14 +14,14 @@
 
 package com.mozilla.presto.hyperloglog;
 
-import com.facebook.presto.operator.aggregation.AggregationFunction;
-import com.facebook.presto.operator.aggregation.CombineFunction;
-import com.facebook.presto.operator.aggregation.InputFunction;
-import com.facebook.presto.operator.aggregation.OutputFunction;
-import com.facebook.presto.operator.aggregation.state.AccumulatorStateSerializer;
-import com.facebook.presto.operator.aggregation.state.StateCompiler;
 import com.facebook.presto.spi.block.BlockBuilder;
-import com.facebook.presto.type.SqlType;
+import com.facebook.presto.spi.function.AccumulatorStateSerializer;
+import com.facebook.presto.spi.function.AggregationFunction;
+import com.facebook.presto.spi.function.AggregationState;
+import com.facebook.presto.spi.function.CombineFunction;
+import com.facebook.presto.spi.function.InputFunction;
+import com.facebook.presto.spi.function.OutputFunction;
+import com.facebook.presto.spi.function.SqlType;
 import com.twitter.algebird.DenseHLL;
 import com.twitter.algebird.HyperLogLog;
 import io.airlift.slice.Slice;
@@ -29,31 +29,26 @@ import io.airlift.slice.Slice;
 @AggregationFunction("merge")
 public final class HyperLogLogAggregation
 {
-    private static final AccumulatorStateSerializer<HyperLogLogState> serializer = new StateCompiler().generateStateSerializer(HyperLogLogState.class);
+    private static final AccumulatorStateSerializer<HyperLogLogState> serializer = new HyperLogLogStateSerializer();
 
     private HyperLogLogAggregation() {}
 
     @InputFunction
-    public static void input(HyperLogLogState state, @SqlType(HyperLogLogType.TYPE) Slice value)
+    public static void input(@AggregationState HyperLogLogState state, @SqlType(HyperLogLogType.TYPE) Slice value)
     {
         DenseHLL input = HyperLogLog.fromBytes(value.getBytes()).toDenseHLL();
-        DenseHLL previous = state.getHyperLogLog();
-
-        if (previous == null) {
-            state.setHyperLogLog(input);
-            state.addMemoryUsage(input.size());
-        }
-        else {
-            input.updateInto(previous.v().array());
-        }
+        merge(state, input);
     }
 
     @CombineFunction
-    public static void combine(HyperLogLogState state, HyperLogLogState otherState)
+    public static void combine(@AggregationState HyperLogLogState state, @AggregationState HyperLogLogState otherState)
     {
-        DenseHLL input = otherState.getHyperLogLog();
-        DenseHLL previous = state.getHyperLogLog();
+        merge(state, otherState.getHyperLogLog());
+    }
 
+    private static void merge(@AggregationState HyperLogLogState state, DenseHLL input)
+    {
+        DenseHLL previous = state.getHyperLogLog();
         if (previous == null) {
             state.setHyperLogLog(input);
             state.addMemoryUsage(input.size());
@@ -64,7 +59,7 @@ public final class HyperLogLogAggregation
     }
 
     @OutputFunction(HyperLogLogType.TYPE)
-    public static void output(HyperLogLogState state, BlockBuilder out)
+    public static void output(@AggregationState HyperLogLogState state, BlockBuilder out)
     {
         serializer.serialize(state, out);
     }

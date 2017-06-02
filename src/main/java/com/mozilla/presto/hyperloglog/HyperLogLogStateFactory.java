@@ -14,12 +14,12 @@
 
 package com.mozilla.presto.hyperloglog;
 
-import com.facebook.presto.operator.aggregation.state.AbstractGroupedAccumulatorState;
-import com.facebook.presto.operator.aggregation.state.AccumulatorStateFactory;
-import com.facebook.presto.util.array.ObjectBigArray;
+import com.facebook.presto.array.ObjectBigArray;
+import com.facebook.presto.spi.function.AccumulatorStateFactory;
+import com.facebook.presto.spi.function.GroupedAccumulatorState;
 import com.twitter.algebird.DenseHLL;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 public class HyperLogLogStateFactory
         implements AccumulatorStateFactory<HyperLogLogState>
@@ -27,7 +27,7 @@ public class HyperLogLogStateFactory
     @Override
     public HyperLogLogState createSingleState()
     {
-       return new SingleHyperLogLogState();
+        return new SingleHyperLogLogState();
     }
 
     @Override
@@ -49,11 +49,22 @@ public class HyperLogLogStateFactory
     }
 
     public static class GroupedHyperLogLogState
-            extends AbstractGroupedAccumulatorState
-            implements HyperLogLogState
+            implements GroupedAccumulatorState, HyperLogLogState
     {
         private final ObjectBigArray<DenseHLL> bfs = new ObjectBigArray<>();
+        private long groupId;
         private long size;
+
+        @Override
+        public final void setGroupId(long groupId)
+        {
+            this.groupId = groupId;
+        }
+
+        protected final long getGroupId()
+        {
+            return groupId;
+        }
 
         @Override
         public void ensureCapacity(long size)
@@ -70,7 +81,7 @@ public class HyperLogLogStateFactory
         @Override
         public void setHyperLogLog(DenseHLL hll)
         {
-            checkNotNull(hll, "value is null");
+            requireNonNull(hll, "value is null");
             bfs.set(getGroupId(), hll);
         }
 
@@ -113,6 +124,9 @@ public class HyperLogLogStateFactory
         @Override
         public long getEstimatedSize()
         {
+            if (hll == null) {
+                return 0;
+            }
             return hll.size();
         }
     }

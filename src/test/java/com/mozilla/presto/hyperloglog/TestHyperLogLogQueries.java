@@ -51,7 +51,7 @@ public class TestHyperLogLogQueries
 
     @Test
     public void testHyperLogLogCast()
-        throws Exception
+            throws Exception
     {
         assertQuery("select cardinality(cast(cast(hll_create('foo', 4) as varbinary) as HLL))", "select 1");
     }
@@ -66,9 +66,9 @@ public class TestHyperLogLogQueries
         LocalQueryRunner localQueryRunner = new LocalQueryRunner(defaultSession);
 
         localQueryRunner.createCatalog(
-            defaultSession.getCatalog().get(),
-            new TpchConnectorFactory(1),
-            ImmutableMap.of());
+                defaultSession.getCatalog().get(),
+                new TpchConnectorFactory(1),
+                ImmutableMap.of());
 
         HyperLogLogPlugin plugin = new HyperLogLogPlugin();
         for (Type type : plugin.getTypes()) {

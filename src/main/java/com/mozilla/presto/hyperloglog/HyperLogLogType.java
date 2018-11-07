@@ -23,7 +23,8 @@ import com.facebook.presto.spi.type.TypeSignature;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import io.airlift.slice.Slice;
 
-public class HyperLogLogType extends AbstractVariableWidthType
+public class HyperLogLogType
+        extends AbstractVariableWidthType
 {
     public static final HyperLogLogType HYPER_LOG_LOG = new HyperLogLogType();
     public static final String TYPE = "HLL";
